@@ -20,14 +20,16 @@ async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
     let args = Args::parse();
 
+    const USER_AGENT: &str = concat!(
+        env!("CARGO_PKG_NAME"),
+        "/",
+        env!("CARGO_PKG_VERSION"),
+        " (+https://github.com/eagletmt/fanbox-dl)"
+    );
     let client = reqwest::ClientBuilder::new()
         .timeout(std::time::Duration::from_secs(20))
         .connect_timeout(std::time::Duration::from_secs(5))
-        .user_agent(concat!(
-            env!("CARGO_PKG_NAME"),
-            "/",
-            env!("CARGO_PKG_VERSION")
-        ))
+        .user_agent(USER_AGENT)
         .default_headers(reqwest::header::HeaderMap::from_iter([
             (
                 reqwest::header::ORIGIN,
