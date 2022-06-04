@@ -184,6 +184,8 @@ pub enum PostBody {
     Article(PostBodyArticle),
     File(PostBodyFile),
     Text(PostBodyText),
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, serde::Deserialize)]
@@ -215,6 +217,7 @@ pub struct PostBodyArticleBody {
     pub blocks: Vec<ArticleBlock>,
     pub image_map: std::collections::HashMap<String, Image>,
     pub file_map: std::collections::HashMap<String, File>,
+    pub embed_map: std::collections::HashMap<String, Embed>,
     pub url_embed_map: std::collections::HashMap<String, UrlEmbed>,
 }
 
@@ -225,7 +228,10 @@ pub enum ArticleBlock {
     Header(ArticleBlockHeader),
     Image(ArticleBlockImage),
     File(ArticleBlockFile),
+    Embed(ArticleBlockEmbed),
     UrlEmbed(ArticleBlockUrlEmbed),
+    #[serde(other)]
+    Unknown,
 }
 #[derive(Debug, serde::Deserialize)]
 pub struct ArticleBlockP {
@@ -244,6 +250,11 @@ pub struct ArticleBlockImage {
 #[serde(rename_all = "camelCase")]
 pub struct ArticleBlockFile {
     pub file_id: String,
+}
+#[derive(Debug, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ArticleBlockEmbed {
+    pub embed_id: String,
 }
 #[derive(Debug, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -269,12 +280,39 @@ pub struct File {
 }
 
 #[derive(Debug, serde::Deserialize)]
+#[serde(tag = "serviceProvider", rename_all = "lowercase")]
+pub enum Embed {
+    Twitter(EmbedTwitter),
+    Fanbox(EmbedFanbox),
+    Youtube(EmbedYoutube),
+    #[serde(other)]
+    Unknown,
+}
+#[derive(Debug, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EmbedTwitter {
+    pub content_id: String,
+}
+#[derive(Debug, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EmbedFanbox {
+    pub content_id: String,
+}
+#[derive(Debug, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EmbedYoutube {
+    pub content_id: String,
+}
+
+#[derive(Debug, serde::Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum UrlEmbed {
     Default(UrlEmbedDefault),
     Html(UrlEmbedHtml),
     #[serde(rename = "html.card")]
     HtmlCard(UrlEmbedHtml),
+    #[serde(other)]
+    Unknown,
 }
 #[derive(Debug, serde::Deserialize)]
 pub struct UrlEmbedDefault {

@@ -45,6 +45,13 @@ async fn main() -> anyhow::Result<()> {
                 fanbox_dl::PostBody::Text(text_body) => {
                     download_text_post(&client, dest_dir, post.info, text_body.body).await?
                 }
+                fanbox_dl::PostBody::Unknown => {
+                    tracing::warn!(
+                        "Unknown post type https://{}.fanbox.cc/posts/{}",
+                        args.creator_id,
+                        post.info.id
+                    );
+                }
             }
         } else {
             tracing::warn!(
@@ -197,6 +204,51 @@ async fn download_article_post(
                     tracing::warn!("file {} is not available in fileMap", file_block.file_id);
                 }
             }
+            fanbox_dl::ArticleBlock::Embed(embed_block) => {
+                if let Some(embed) = body.embed_map.get(&embed_block.embed_id) {
+                    match embed {
+                        fanbox_dl::Embed::Twitter(twitter) => {
+                            // embedMap doesn't have screen name but /*/status/:id is redirected to
+                            // the currect URL.
+                            index_lines.push(format!(
+                                "<a href='https://twitter.com/unknown/status/{}'>twitter:{}</a>",
+                                twitter.content_id, twitter.content_id
+                            ));
+                        }
+                        fanbox_dl::Embed::Fanbox(fanbox) => {
+                            let parts: Vec<_> = fanbox.content_id.split('/').collect();
+                            if parts.len() == 4 && parts[0] == "creator" && parts[2] == "post" {
+                                let post = client.get_post(parts[3]).await.with_context(|| {
+                                    format!("failed to get embeded fanbox post: {}", parts[3])
+                                })?;
+                                index_lines.push(format!(
+                                    "<a href='{}'>{}</a>",
+                                    post.info.creator_id, post.info.title,
+                                ));
+                            } else {
+                                tracing::warn!(
+                                    "Unsupported embed content_id of fanbox: {}",
+                                    fanbox.content_id
+                                );
+                            }
+                        }
+                        fanbox_dl::Embed::Youtube(youtube) => {
+                            index_lines.push(format!(
+                                "<a href='https://www.youtube.com/watch?v={}'>https://www.youtube.com/watch?v={}</a>",
+                                youtube.content_id, youtube.content_id
+                            ));
+                        }
+                        fanbox_dl::Embed::Unknown => {
+                            tracing::warn!("Unknown serviceProvider was found in embedMap https://{}.fanbox.cc/posts/{}", info.creator_id, info.id);
+                        }
+                    }
+                } else {
+                    tracing::warn!(
+                        "embed {} is not available in embedMap",
+                        embed_block.embed_id
+                    );
+                }
+            }
             fanbox_dl::ArticleBlock::UrlEmbed(url_embed_block) => {
                 if let Some(url_embed) = body.url_embed_map.get(&url_embed_block.url_embed_id) {
                     match url_embed {
@@ -207,6 +259,9 @@ async fn download_article_post(
                         fanbox_dl::UrlEmbed::Html(html) | fanbox_dl::UrlEmbed::HtmlCard(html) => {
                             index_lines.push(html.html.to_owned());
                         }
+                        fanbox_dl::UrlEmbed::Unknown => {
+                            tracing::warn!("Unknown type was found in urlEmbedMap https://{}.fanbox.cc/posts/{}", info.creator_id, info.id);
+                        }
                     }
                 } else {
                     tracing::warn!(
@@ -214,6 +269,13 @@ async fn download_article_post(
                         url_embed_block.url_embed_id
                     );
                 }
+            }
+            fanbox_dl::ArticleBlock::Unknown => {
+                tracing::warn!(
+                    "Unknown block was found in artcle post https://{}.fanbox.cc/posts/{}",
+                    info.creator_id,
+                    info.id
+                );
             }
         }
         index_lines.push("</p>".to_owned());
