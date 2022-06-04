@@ -184,6 +184,7 @@ pub enum PostBody {
     Article(PostBodyArticle),
     File(PostBodyFile),
     Text(PostBodyText),
+    Video(PostBodyVideo),
     #[serde(other)]
     Unknown,
 }
@@ -285,6 +286,7 @@ pub enum Embed {
     Twitter(EmbedTwitter),
     Fanbox(EmbedFanbox),
     Youtube(EmbedYoutube),
+    Vimeo(EmbedVimeo),
     #[serde(other)]
     Unknown,
 }
@@ -301,6 +303,11 @@ pub struct EmbedFanbox {
 #[derive(Debug, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct EmbedYoutube {
+    pub content_id: String,
+}
+#[derive(Debug, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EmbedVimeo {
     pub content_id: String,
 }
 
@@ -330,4 +337,31 @@ pub struct PostBodyText {
 #[derive(Debug, serde::Deserialize)]
 pub struct PostBodyTextBody {
     pub text: String,
+}
+
+#[derive(Debug, serde::Deserialize)]
+pub struct PostBodyVideo {
+    pub body: PostBodyVideoBody,
+}
+#[derive(Debug, serde::Deserialize)]
+pub struct PostBodyVideoBody {
+    pub text: String,
+    pub video: Video,
+}
+
+#[derive(Debug, serde::Deserialize)]
+#[serde(tag = "serviceProvider", rename_all = "lowercase")]
+pub enum Video {
+    Youtube(VideoYoutube),
+    Vimeo(VideoVimeo),
+}
+#[derive(Debug, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VideoYoutube {
+    pub video_id: String,
+}
+#[derive(Debug, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VideoVimeo {
+    pub video_id: String,
 }

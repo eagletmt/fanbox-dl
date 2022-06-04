@@ -45,6 +45,9 @@ async fn main() -> anyhow::Result<()> {
                 fanbox_dl::PostBody::Text(text_body) => {
                     download_text_post(&client, dest_dir, post.info, text_body.body).await?
                 }
+                fanbox_dl::PostBody::Video(video_body) => {
+                    download_video_post(&client, dest_dir, post.info, video_body.body).await?
+                }
                 fanbox_dl::PostBody::Unknown => {
                     tracing::warn!(
                         "Unknown post type https://{}.fanbox.cc/posts/{}",
@@ -238,6 +241,12 @@ async fn download_article_post(
                                 youtube.content_id, youtube.content_id
                             ));
                         }
+                        fanbox_dl::Embed::Vimeo(vimeo) => {
+                            index_lines.push(format!(
+                                "<a href='https://vimeo.com/{}'>https://vimeo.com/{}</a>",
+                                vimeo.content_id, vimeo.content_id
+                            ));
+                        }
                         fanbox_dl::Embed::Unknown => {
                             tracing::warn!("Unknown serviceProvider was found in embedMap https://{}.fanbox.cc/posts/{}", info.creator_id, info.id);
                         }
@@ -395,6 +404,70 @@ async fn download_text_post(
         ));
         index_lines.push("</p>".to_owned());
     }
+
+    index_lines.push(format!("<p>{}</p>", body.text));
+
+    let index_path = dest_dir.join("index.html");
+    tokio::fs::write(&index_path, index_lines.join("\n").as_bytes())
+        .await
+        .with_context(|| format!("failed to write {}", index_path.display()))?;
+    filetime::set_file_mtime(
+        &index_path,
+        filetime::FileTime::from_unix_time(
+            info.updated_datetime.timestamp(),
+            info.updated_datetime.timestamp_subsec_nanos(),
+        ),
+    )
+    .with_context(|| format!("failed to update mtime {}", index_path.display()))?;
+
+    Ok(())
+}
+
+async fn download_video_post(
+    client: &fanbox_dl::PostClient,
+    dest_dir: std::path::PathBuf,
+    info: fanbox_dl::PostInfo,
+    body: fanbox_dl::PostBodyVideoBody,
+) -> anyhow::Result<()> {
+    let span = tracing::info_span!("video", id = %info.id);
+    let _enter = span.enter();
+
+    let mut index_lines = Vec::new();
+    index_lines.push(format!(
+        "<h1><a href='https://{}.fanbox.cc/posts/{}'>{}</a></h1>",
+        info.creator_id, info.id, info.title
+    ));
+
+    if let Some(cover_image_url) = info.cover_image_url {
+        tracing::info!("Download cover image {}", cover_image_url);
+        client
+            .download_to(
+                &cover_image_url,
+                dest_dir.join("cover_image.jpeg"),
+                &info.updated_datetime,
+            )
+            .await
+            .with_context(|| format!("failed to download {}", cover_image_url))?;
+        index_lines.push("<p>".to_owned());
+        index_lines.push(format!(
+            "<img alt='{}' src='./cover_image.jpeg'>",
+            cover_image_url
+        ));
+        index_lines.push("</p>".to_owned());
+    }
+
+    index_lines.push("<p>".to_owned());
+    match body.video {
+        fanbox_dl::Video::Youtube(youtube) => index_lines.push(format!(
+            "<a href='https://www.youtube.com/watch?v={}'>https://www.youtube.com/watch?v={}</a>",
+            youtube.video_id, youtube.video_id
+        )),
+        fanbox_dl::Video::Vimeo(vimeo) => index_lines.push(format!(
+            "<a href='https://vimeo.com/{}'>https://vimeo.com/{}</a>",
+            vimeo.video_id, vimeo.video_id
+        )),
+    }
+    index_lines.push("</p>".to_owned());
 
     index_lines.push(format!("<p>{}</p>", body.text));
 
