@@ -22,6 +22,7 @@ async fn main() -> anyhow::Result<()> {
 
     let client =
         fanbox_dl::PostClient::new(&args.session_id).context("failed to build fanbox-dl client")?;
+
     let items = client.paginate_creator(&args.creator_id).await?;
     futures::pin_mut!(items);
     while let Some(item) = items.try_next().await? {
@@ -157,6 +158,9 @@ async fn download_article_post(
         match block {
             fanbox_dl::ArticleBlock::P(p_block) => {
                 index_lines.push(p_block.text);
+            }
+            fanbox_dl::ArticleBlock::Header(header_block) => {
+                index_lines.push(format!("<h2>{}</h2>", header_block.text));
             }
             fanbox_dl::ArticleBlock::Image(image_block) => {
                 if let Some(image) = body.image_map.get(&image_block.image_id) {

@@ -222,12 +222,17 @@ pub struct PostBodyArticleBody {
 #[serde(rename_all = "snake_case", tag = "type")]
 pub enum ArticleBlock {
     P(ArticleBlockP),
+    Header(ArticleBlockHeader),
     Image(ArticleBlockImage),
     File(ArticleBlockFile),
     UrlEmbed(ArticleBlockUrlEmbed),
 }
 #[derive(Debug, serde::Deserialize)]
 pub struct ArticleBlockP {
+    pub text: String,
+}
+#[derive(Debug, serde::Deserialize)]
+pub struct ArticleBlockHeader {
     pub text: String,
 }
 #[derive(Debug, serde::Deserialize)]
